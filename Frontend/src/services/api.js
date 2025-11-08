@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
@@ -17,9 +17,7 @@ api.interceptors.request.use(
         }
         return config;
     },
-    (error) => {
-        return Promise.reject(error);
-    }
+    (error) => Promise.reject(error)
 );
 
 // Response interceptor
@@ -28,43 +26,41 @@ api.interceptors.response.use(
     (error) => {
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
             window.location.href = '/login';
         }
         return Promise.reject(error);
     }
 );
 
-// Menu API
-export const menuAPI = {
-    getAll: (categoryId) => api.get('/menu', { params: { categoryId } }),
-    getById: (id) => api.get(`/menu/${id}`),
-    create: (data) => api.post('/menu', data),
-    update: (id, data) => api.put(`/menu/${id}`, data),
-    delete: (id) => api.delete(`/menu/${id}`),
-    getCategories: () => api.get('/menu/categories'),
-    createCategory: (data) => api.post('/menu/categories', data),
+// Auth API
+export const authAPI = {
+    login: (credentials) => api.post('/auth/login', credentials),
+    register: (data) => api.post('/auth/register', data),
+    getCurrentUser: () => api.get('/auth/me'),
 };
 
-// Order API
-export const orderAPI = {
-    getAll: (status) => api.get('/order', { params: { status } }),
-    getById: (id) => api.get(`/order/${id}`),
-    create: (data) => api.post('/order', data),
-    updateStatus: (id, status) => api.put(`/order/${id}/status`, { status }),
-    pay: (id, paymentMethod) => api.post(`/order/${id}/pay`, { paymentMethod }),
-    cancel: (id) => api.delete(`/order/${id}`),
+// Menu API
+export const menuAPI = {
+    getAll: () => api.get('/menu'),
+    getById: (id) => api.get(`/menu/${id}`),
+    getCategories: () => api.get('/menu/categories'),
 };
 
 // Table API
 export const tableAPI = {
-    getAll: (status) => api.get('/table', { params: { status } }),
+    getAll: () => api.get('/table'),
     getById: (id) => api.get(`/table/${id}`),
-    getCurrentOrder: (id) => api.get(`/table/${id}/current-order`),
-    create: (data) => api.post('/table', data),
-    update: (id, data) => api.put(`/table/${id}`, data),
-    updateStatus: (id, status) => api.put(`/table/${id}/status`, { status }),
-    delete: (id) => api.delete(`/table/${id}`),
-    getStatistics: () => api.get('/table/statistics'),
+    updateStatus: (id, status) => api.patch(`/table/${id}/status`, { status }),
+};
+
+// Order API
+export const orderAPI = {
+    getAll: () => api.get('/order'),
+    getById: (id) => api.get(`/order/${id}`),
+    create: (data) => api.post('/order', data),
+    updateStatus: (id, status) => api.patch(`/order/${id}/status`, { status }),
+    pay: (id, paymentMethod) => api.post(`/order/${id}/pay`, { paymentMethod }),
 };
 
 export default api;
