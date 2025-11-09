@@ -17,7 +17,7 @@ namespace RestaurantAPI.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -34,7 +34,8 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -43,7 +44,39 @@ namespace RestaurantAPI.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name");
+
                     b.ToTable("Categories");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2025, 11, 9, 13, 54, 28, 252, DateTimeKind.Utc).AddTicks(3408),
+                            Description = "Các món ăn khai vị",
+                            Name = "Món khai vị"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2025, 11, 9, 13, 54, 28, 252, DateTimeKind.Utc).AddTicks(3412),
+                            Description = "Các món ăn chính",
+                            Name = "Món chính"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTime(2025, 11, 9, 13, 54, 28, 252, DateTimeKind.Utc).AddTicks(3413),
+                            Description = "Các món tráng miệng",
+                            Name = "Món tráng miệng"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedAt = new DateTime(2025, 11, 9, 13, 54, 28, 252, DateTimeKind.Utc).AddTicks(3414),
+                            Description = "Các loại đồ uống",
+                            Name = "Đồ uống"
+                        });
                 });
 
             modelBuilder.Entity("RestaurantAPI.Models.Customer", b =>
@@ -58,7 +91,8 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<int>("LoyaltyPoints")
                         .HasColumnType("int");
@@ -74,6 +108,11 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("varchar(20)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("Phone")
+                        .IsUnique();
 
                     b.ToTable("Customers");
                 });
@@ -96,22 +135,26 @@ namespace RestaurantAPI.Migrations
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("Role")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -122,6 +165,8 @@ namespace RestaurantAPI.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("Role");
 
                     b.HasIndex("Username")
                         .IsUnique();
@@ -144,10 +189,12 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<string>("ImageUrl")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("tinyint(1)");
@@ -164,6 +211,10 @@ namespace RestaurantAPI.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("IsAvailable");
+
+                    b.HasIndex("Name");
+
                     b.ToTable("MenuItems");
                 });
 
@@ -179,7 +230,8 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime(6)");
@@ -199,6 +251,10 @@ namespace RestaurantAPI.Migrations
 
                     b.HasIndex("CustomerId");
 
+                    b.HasIndex("OrderDate");
+
+                    b.HasIndex("Status");
+
                     b.HasIndex("TableId");
 
                     b.ToTable("Orders");
@@ -216,7 +272,8 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
@@ -255,16 +312,20 @@ namespace RestaurantAPI.Migrations
 
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId")
                         .IsUnique();
+
+                    b.HasIndex("PaymentDate");
 
                     b.ToTable("Payments");
                 });
@@ -284,7 +345,8 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<int>("NumberOfGuests")
                         .HasColumnType("int");
@@ -304,7 +366,11 @@ namespace RestaurantAPI.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("TableId");
+                    b.HasIndex("ReservationDate");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TableId", "ReservationDate");
 
                     b.ToTable("Reservations");
                 });
@@ -321,7 +387,8 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Location")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -334,6 +401,11 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("varchar(10)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TableNumber")
+                        .IsUnique();
 
                     b.ToTable("Tables");
                 });

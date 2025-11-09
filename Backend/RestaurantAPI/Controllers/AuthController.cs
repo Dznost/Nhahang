@@ -6,6 +6,8 @@ using System.Security.Claims;
 using System.Text;
 using RestaurantAPI.Data;
 using RestaurantAPI.Models;
+using RestaurantAPI.DTOs;
+using RestaurantAPI.DTOs.Auth;
 
 namespace RestaurantAPI.Controllers;
 
@@ -22,154 +24,123 @@ public class AuthController : ControllerBase
         _configuration = configuration;
     }
 
+    // POST: api/auth/register
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<ActionResult<TokenDTO>> Register(RegisterDTO request)
     {
-        try
+        if (!ModelState.IsValid)
         {
-            // Validate input
-            if (string.IsNullOrWhiteSpace(request.Username) ||
-                string.IsNullOrWhiteSpace(request.Password) ||
-                string.IsNullOrWhiteSpace(request.FullName) ||
-                string.IsNullOrWhiteSpace(request.Email))
-            {
-                return BadRequest(new { message = "Vui lòng điền đầy đủ thông tin" });
-            }
-
-            // Check if username exists
-            var existingUser = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Username == request.Username);
-
-            if (existingUser != null)
-            {
-                return BadRequest(new { message = "Tên đăng nhập đã tồn tại" });
-            }
-
-            // Check if email exists
-            var existingEmail = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Email == request.Email);
-
-            if (existingEmail != null)
-            {
-                return BadRequest(new { message = "Email đã được sử dụng" });
-            }
-
-            // Validate password length
-            if (request.Password.Length < 6)
-            {
-                return BadRequest(new { message = "Mật khẩu phải có ít nhất 6 ký tự" });
-            }
-
-            // Validate role
-            var validRoles = new[] { "Admin", "Manager", "Staff", "Chef" };
-            if (!validRoles.Contains(request.Role))
-            {
-                return BadRequest(new { message = "Vai trò không hợp lệ" });
-            }
-
-            // Create new employee
-            var employee = new Employee
-            {
-                Username = request.Username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                FullName = request.FullName,
-                Email = request.Email,
-                Phone = request.Phone,
-                Role = request.Role,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Employees.Add(employee);
-            await _context.SaveChangesAsync();
-
-            // Generate token
-            var token = GenerateJwtToken(employee);
-
-            return Ok(new
-            {
-                token,
-                employee = new
-                {
-                    employee.Id,
-                    employee.Username,
-                    employee.FullName,
-                    employee.Email,
-                    employee.Phone,
-                    employee.Role
-                }
-            });
+            return BadRequest(ModelState);
         }
-        catch (Exception ex)
+
+        // Check if username exists
+        if (await _context.Employees.AnyAsync(e => e.Username == request.Username))
         {
-            Console.WriteLine($"❌ Register error: {ex.Message}");
-            return StatusCode(500, new { message = "Đã xảy ra lỗi khi đăng ký", error = ex.Message });
+            return BadRequest(new { message = "Username already exists" });
         }
+
+        // Check if email exists
+        if (await _context.Employees.AnyAsync(e => e.Email == request.Email))
+        {
+            return BadRequest(new { message = "Email already exists" });
+        }
+
+        // Create employee
+        var employee = new Employee
+        {
+            Username = request.Username,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            FullName = request.FullName,
+            Email = request.Email,
+            Phone = request.Phone,
+            Role = "Staff",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Employees.Add(employee);
+        await _context.SaveChangesAsync();
+
+        // Generate token
+        var token = GenerateJwtToken(employee);
+
+        return Ok(new TokenDTO
+        {
+            Token = token,
+            Employee = MapToEmployeeDTO(employee)
+        });
     }
 
+    // POST: api/auth/login
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<TokenDTO>> Login(LoginDTO request)
     {
-        try
+        if (!ModelState.IsValid)
         {
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Username == request.Username);
-
-            if (employee == null)
-            {
-                return Unauthorized(new { message = "Tên đăng nhập hoặc mật khẩu không đúng" });
-            }
-
-            if (!employee.IsActive)
-            {
-                return Unauthorized(new { message = "Tài khoản đã bị vô hiệu hóa" });
-            }
-
-            bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, employee.PasswordHash);
-
-            if (!isPasswordValid)
-            {
-                return Unauthorized(new { message = "Tên đăng nhập hoặc mật khẩu không đúng" });
-            }
-
-            var token = GenerateJwtToken(employee);
-
-            return Ok(new
-            {
-                token,
-                employee = new
-                {
-                    employee.Id,
-                    employee.Username,
-                    employee.FullName,
-                    employee.Email,
-                    employee.Phone,
-                    employee.Role
-                }
-            });
+            return BadRequest(ModelState);
         }
-        catch (Exception ex)
+
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.Username == request.Username);
+
+        if (employee == null)
         {
-            Console.WriteLine($"❌ Login error: {ex.Message}");
-            return StatusCode(500, new { message = "Đã xảy ra lỗi khi đăng nhập", error = ex.Message });
+            return Unauthorized(new { message = "Invalid username or password" });
         }
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, employee.PasswordHash))
+        {
+            return Unauthorized(new { message = "Invalid username or password" });
+        }
+
+        if (!employee.IsActive)
+        {
+            return Unauthorized(new { message = "Account is disabled" });
+        }
+
+        var token = GenerateJwtToken(employee);
+
+        return Ok(new TokenDTO
+        {
+            Token = token,
+            Employee = MapToEmployeeDTO(employee)
+        });
     }
 
+    // GET: api/auth/me
+    [HttpGet("me")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<ActionResult<EmployeeDTO>> GetCurrentUser()
+    {
+        var username = User.FindFirst(ClaimTypes.Name)?.Value;
+
+        if (string.IsNullOrEmpty(username))
+        {
+            return Unauthorized();
+        }
+
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.Username == username);
+
+        if (employee == null)
+        {
+            return NotFound(new { message = "User not found" });
+        }
+
+        return Ok(MapToEmployeeDTO(employee));
+    }
+
+    // Helper methods
     private string GenerateJwtToken(Employee employee)
     {
-        var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ??
-                       _configuration["JWT_SECRET"] ??
-                       "eZOZZ2XhtQz9Bxw/z5GKWAhlWy/vgSkC6yEVWmF8JZY=";
+        var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET")
+            ?? _configuration["Jwt:Key"];
+        var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER")
+            ?? _configuration["Jwt:Issuer"];
+        var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+            ?? _configuration["Jwt:Audience"];
 
-        var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ??
-                       _configuration["JWT_ISSUER"] ??
-                       "RestaurantAPI";
-
-        var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ??
-                         _configuration["JWT_AUDIENCE"] ??
-                         "RestaurantClient";
-
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -177,34 +148,33 @@ public class AuthController : ControllerBase
             new Claim(ClaimTypes.NameIdentifier, employee.Id.ToString()),
             new Claim(ClaimTypes.Name, employee.Username),
             new Claim(ClaimTypes.Email, employee.Email),
-            new Claim(ClaimTypes.Role, employee.Role)
+            new Claim(ClaimTypes.Role, employee.Role),
+            new Claim("FullName", employee.FullName)
         };
 
         var token = new JwtSecurityToken(
             issuer: jwtIssuer,
             audience: jwtAudience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
+            expires: DateTime.UtcNow.AddMinutes(60),
             signingCredentials: credentials
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
-}
 
-// Request DTOs
-public class LoginRequest
-{
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-}
-
-public class RegisterRequest
-{
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-    public string FullName { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string Phone { get; set; } = string.Empty;
-    public string Role { get; set; } = "Staff";
+    private EmployeeDTO MapToEmployeeDTO(Employee employee)
+    {
+        return new EmployeeDTO
+        {
+            Id = employee.Id,
+            Username = employee.Username,
+            FullName = employee.FullName,
+            Email = employee.Email,
+            Phone = employee.Phone,
+            Role = employee.Role,
+            IsActive = employee.IsActive,
+            CreatedAt = employee.CreatedAt
+        };
+    }
 }

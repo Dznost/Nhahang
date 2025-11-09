@@ -7,7 +7,7 @@ using RestaurantAPI.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Force port 5000 (quan trọng!)
+// Force port 5000
 builder.WebHost.UseUrls("http://localhost:5000");
 
 // Load .env
@@ -73,9 +73,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ClockSkew = TimeSpan.Zero
         };
     });
+
+// Add Authorization
+builder.Services.AddAuthorization();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -90,12 +94,7 @@ builder.Services.AddCors(options =>
 });
 
 // Add Controllers
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-        options.JsonSerializerOptions.WriteIndented = true;
-    });
+builder.Services.AddControllers();
 
 // Add Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -105,13 +104,18 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Restaurant Management API",
         Version = "v1",
-        Description = "API for Restaurant Management System"
+        Description = "API for Restaurant Management System",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "Restaurant Management Team",
+            Email = "support@restaurant.com"
+        }
     });
 
     // Add JWT Authentication to Swagger
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token",
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below. Example: 'Bearer 12345abcdef'",
         Name = "Authorization",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
